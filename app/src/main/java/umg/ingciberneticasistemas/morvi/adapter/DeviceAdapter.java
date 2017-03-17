@@ -11,8 +11,8 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 
 import umg.ingciberneticasistemas.morvi.R;
@@ -43,11 +43,17 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
     private final AppCompatActivity activity_context;
 
     /**
+     * listener: Instancia de OnDeviceLickListener a la que se comunican los eventos de click en
+     * los dispositivos de la lista.
+     */
+    private OnDeviceClickListener listener;
+
+    /**
      * DeviceAdapter
      * @param devices dispositivos a agregar desde un comienzo.
      * @param activity_context activity padre donde se ubica la lista.
      */
-    public DeviceAdapter(ArrayList<BluetoothDevice> devices, AppCompatActivity activity_context){
+    public DeviceAdapter(LinkedList<BluetoothDevice> devices, AppCompatActivity activity_context){
         this.devices = devices;
         devices_existence = new HashMap<>();
         this.activity_context = activity_context;
@@ -108,9 +114,44 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
     }
 
     /**
+     * clearList: Limpia la lista por completo.
+     */
+    public void clearList(){
+        devices.clear();
+        devices_existence.clear();
+        notifyDataSetChanged();
+    }
+
+    /**
+     * getDeviceInPosition: Regresa el dispositivo de la posicion indicada en la lista.
+     * @param position posicion del dispositivo
+     * @return dispositivo bt
+     */
+    public BluetoothDevice getDeviceInPosition(int position){
+        return devices.get(position);
+    }
+
+    /**
+     * setOnDeviceClickListener: Suscribe una instancia de OnDeviceClickListener para escuchar los
+     * eventos de click sobre los dispositivos.
+     * @param listener instancia de OnDeviceClickListener
+     */
+    public void setOnDeviceClickListener(OnDeviceClickListener listener){
+        this.listener = listener;
+    }
+
+    /**
+     * OnDeviceClickListener: Interface que comunica a sus instancias cuando se hace un click sobre
+     * un dispositivo.
+     */
+     public interface OnDeviceClickListener {
+        void onClick(View v, int position);
+    }
+
+    /**
      * DeviceHolder: Holder para cada item de la lista.
      */
-    static class DeviceHolder extends RecyclerView.ViewHolder{
+      class DeviceHolder extends RecyclerView.ViewHolder{
 
         /**
          * device_name: Nombre de este dispositivo.
@@ -141,13 +182,13 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
             bt_icon = (ImageView)itemView.findViewById(R.id.ic_bluetooth_status);
             pb = (ProgressBar)itemView.findViewById(R.id.progress_loader);
 
-            //Se coloca una animacion simple al hacer click y se trata de conetar al dispositivo
+            //Se coloca una animacion simple al hacer click y se avisa al listener
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     v.startAnimation(AnimationUtils.loadAnimation(activity_context,
                             R.anim.on_click_item));
-                    //TODO Conectarse al dispositivo al que se hizo click
+                    listener.onClick(v, getAdapterPosition());
                 }
             });
         }

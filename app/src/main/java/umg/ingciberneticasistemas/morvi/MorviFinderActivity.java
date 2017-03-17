@@ -3,6 +3,10 @@ package umg.ingciberneticasistemas.morvi;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
@@ -13,7 +17,6 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
-import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
@@ -26,7 +29,7 @@ import android.view.MenuItem;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import umg.ingciberneticasistemas.morvi.Dialog.SimpleDialog;
@@ -73,6 +76,11 @@ public class MorviFinderActivity extends AppCompatActivity {
     private BluetoothLeScanner ble_scanner;
 
     /**
+     * ble_gatt: Driver para la conexion a GATT server (BLE).
+     */
+    private BluetoothGatt ble_gatt;
+
+    /**
      * search_handler: Hilo en segundo plano para pausar la busqueda cuando pase el tiempo indicado.
      */
     private Handler search_handler;
@@ -90,20 +98,15 @@ public class MorviFinderActivity extends AppCompatActivity {
 
 
     /**
-     * fab_search: Boton para iniciar busqueda.
-     */
-    private FloatingActionButton fab_search;
-
-    /**
      * progress_bt_find: Barra de progreso que se muestra durante la busqueda.
      */
     private ProgressBar progress_bt_find;
 
 
     /**
-     * ble_callback: Escucha eventos de busqueda de dispositivos.
+     * ble_scan_callback: Escucha eventos de busqueda de dispositivos.
      */
-    private ScanCallback ble_callback = new ScanCallback() {
+    private ScanCallback ble_scan_callback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             super.onScanResult(callbackType, result);
@@ -121,6 +124,87 @@ public class MorviFinderActivity extends AppCompatActivity {
         @Override
         public void onScanFailed(int errorCode) {
             super.onScanFailed(errorCode);
+
+            Toast.makeText(MorviFinderActivity.this, getString(R.string.toast_scan_failed),
+                    Toast.LENGTH_LONG).show();
+        }
+    };
+
+    /**
+     * ble_gatt_callback: Callback para manejar conexiones GATT de ble.
+     */
+    private final BluetoothGattCallback ble_gatt_callback = new BluetoothGattCallback() {
+
+        //TODO remover los callback innecesarios
+
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            super.onConnectionStateChange(gatt, status, newState);
+
+            //Checa cual es el nuevo estado y notifica al usuario
+            if (status == BluetoothGatt.GATT_SUCCESS){
+                if (newState == BluetoothGatt.STATE_CONNECTING) {
+                    Toast.makeText(MorviFinderActivity.this,
+                            getString(R.string.toast_gatt_connecting), Toast.LENGTH_SHORT).show();
+                }
+                else if (newState == BluetoothGatt.STATE_CONNECTED) {
+                    Toast.makeText(MorviFinderActivity.this,
+                            getString(R.string.toast_gatt_connected), Toast.LENGTH_SHORT).show();
+                }
+                else if (newState == BluetoothGatt.STATE_DISCONNECTING) {
+                    Toast.makeText(MorviFinderActivity.this,
+                            getString(R.string.toast_gatt_disconnecting), Toast.LENGTH_SHORT).show();
+                }
+                else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+                    Toast.makeText(MorviFinderActivity.this,
+                            getString(R.string.toast_gatt_disconnected), Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            super.onServicesDiscovered(gatt, status);
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicRead(gatt, characteristic, status);
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicWrite(gatt, characteristic, status);
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            super.onCharacteristicChanged(gatt, characteristic);
+        }
+
+        @Override
+        public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            super.onDescriptorRead(gatt, descriptor, status);
+        }
+
+        @Override
+        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            super.onDescriptorWrite(gatt, descriptor, status);
+        }
+
+        @Override
+        public void onReliableWriteCompleted(BluetoothGatt gatt, int status) {
+            super.onReliableWriteCompleted(gatt, status);
+        }
+
+        @Override
+        public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+            super.onReadRemoteRssi(gatt, rssi, status);
+        }
+
+        @Override
+        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+            super.onMtuChanged(gatt, mtu, status);
         }
     };
 
@@ -136,8 +220,6 @@ public class MorviFinderActivity extends AppCompatActivity {
 
         progress_bt_find = (ProgressBar)findViewById(R.id.progress_bt_find);
 
-        fab_search = (FloatingActionButton)findViewById(R.id.fab_renew);
-
         //Se obtienen instancias de los drivers de bluetooth
         BluetoothManager bt_manager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
         bt_adapter = bt_manager.getAdapter();
@@ -148,7 +230,14 @@ public class MorviFinderActivity extends AppCompatActivity {
         RecyclerView list_devices = (RecyclerView)findViewById(R.id.recycler_view_devices);
 
         //Se indica el adaptador
-        device_adapter = new DeviceAdapter(new ArrayList<BluetoothDevice>(), this);
+        device_adapter = new DeviceAdapter(new LinkedList<BluetoothDevice>(), this);
+        device_adapter.setOnDeviceClickListener(new DeviceAdapter.OnDeviceClickListener() {
+            @Override
+            public void onClick(View v, int position) {
+                BluetoothDevice device = device_adapter.getDeviceInPosition(position);
+                ble_gatt = device.connectGatt(MorviFinderActivity.this, false, ble_gatt_callback);
+            }
+        });
         list_devices.setAdapter(device_adapter);
 
         //Driver de layout
@@ -163,6 +252,20 @@ public class MorviFinderActivity extends AppCompatActivity {
 
         //Se comienza la busqueda
         searchDevices();
+    }
+
+    @Override
+    public void onDestroy(){
+        if (scanning){
+            ble_scanner.stopScan(ble_scan_callback);
+        }
+
+        if (ble_gatt != null) {
+            ble_gatt.close();
+            ble_gatt = null;
+        }
+
+        super.onDestroy();
     }
 
     @Override
@@ -272,21 +375,29 @@ public class MorviFinderActivity extends AppCompatActivity {
         //a buscar. Si se desea detener, hace justo lo contrario
         if (scan){
             progress_bt_find.setVisibility(View.VISIBLE);
-            ble_scanner.startScan(ble_callback);
+            ble_scanner.startScan(ble_scan_callback);
             scanning = true;
-            fab_search.setEnabled(false);
         } else {
             progress_bt_find.setVisibility(View.INVISIBLE);
-            ble_scanner.stopScan(ble_callback);
+            ble_scanner.stopScan(ble_scan_callback);
             scanning = false;
-            fab_search.setEnabled(true);
         }
     }
 
-    private void fabClicked(View v){
-        //Inicia busqueda y muestra un texto indicador
-        searchDevices();
-        Toast.makeText(MorviFinderActivity.this,
-                getString(R.string.toast_searching_devices), Toast.LENGTH_SHORT).show();
+    /**
+     * fabClicked: Evento disparado cuando se pulsa el FAB de busqueda de dispositivos.
+     * @param v vista del FAB
+     */
+    public void fabClicked(View v){
+        //Inicia busqueda si esta no esta en ejecucion ya y muestra un texto indicador
+        if (!scanning){
+            device_adapter.clearList();
+            searchDevices();
+            Toast.makeText(MorviFinderActivity.this,
+                    getString(R.string.toast_searching_devices1), Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(MorviFinderActivity.this,
+                    getString(R.string.toast_searching_devices2), Toast.LENGTH_SHORT).show();
+        }
     }
 }

@@ -11,5 +11,12 @@
 
     <string name="iv_desc_bt_icon">Indicates if the device is connected or not</string>
 
-    <string name="toast_searching_devices">Looking for Morvi…</string>
+    <string name="toast_searching_devices1">Looking for Morvi…</string>
+    <string name="toast_searching_devices2">We are searching :)</string>
+    <string name="toast_scan_failed">Something went wrong while scanning :(</string>
+    <string name="toast_gatt_connecting">Connecting with Morvi…</string>
+    <string name="toast_gatt_connected">Morvi can hear us!</string>
+    <string name="toast_gatt_disconnecting">Disconnecting Morvi…</string>
+    <string name="toast_gatt_disconnected">Good bye Morvi!</string>
+
 </resources>
