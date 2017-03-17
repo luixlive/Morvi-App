@@ -127,7 +127,7 @@ public class MorviFinderActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        setContentView(R.layout.activity_morvi_finder);
 
         //Se inician comaponentes graficos (barra superior, boton, barra de progreso, lista)
 
@@ -136,16 +136,7 @@ public class MorviFinderActivity extends AppCompatActivity {
 
         progress_bt_find = (ProgressBar)findViewById(R.id.progress_bt_find);
 
-        fab_search = (FloatingActionButton) findViewById(R.id.fab_renew);
-        fab_search.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                //Inicia busqueda y muestra un texto indicador
-                searchDevices();
-                Toast.makeText(MorviFinderActivity.this,
-                        getString(R.string.toast_searching_devices), Toast.LENGTH_SHORT).show();
-            }
-        });
+        fab_search = (FloatingActionButton)findViewById(R.id.fab_renew);
 
         //Se obtienen instancias de los drivers de bluetooth
         BluetoothManager bt_manager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
@@ -154,7 +145,7 @@ public class MorviFinderActivity extends AppCompatActivity {
         search_handler = new Handler();
 
         //La lista es tipo RecyclerView
-        RecyclerView list_devices = (RecyclerView) findViewById(R.id.recycler_view_devices);
+        RecyclerView list_devices = (RecyclerView)findViewById(R.id.recycler_view_devices);
 
         //Se indica el adaptador
         device_adapter = new DeviceAdapter(new ArrayList<BluetoothDevice>(), this);
@@ -290,5 +281,12 @@ public class MorviFinderActivity extends AppCompatActivity {
             scanning = false;
             fab_search.setEnabled(true);
         }
+    }
+
+    private void fabClicked(View v){
+        //Inicia busqueda y muestra un texto indicador
+        searchDevices();
+        Toast.makeText(MorviFinderActivity.this,
+                getString(R.string.toast_searching_devices), Toast.LENGTH_SHORT).show();
     }
 }
