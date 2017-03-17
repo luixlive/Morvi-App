@@ -2,4 +2,12 @@
     <string name="app_name">Morvi</string>
     <string name="action_settings">Settings</string>
     <string name="morvi_finder_activity">Morvi Finder</string>
+
+    <string name="permission_dialog_title">Would you… please?</string>
+    <string name="permission_dialog_location">We need you to give us access to your location so we
+        can find Morvi.</string>
+    <string name="simple_dialog_accept">OK :)</string>
+    <string name="simple_dialog_cancel">Nope</string>
+
+    <string name="iv_desc_bt_icon">Indicates if the device is connected or not</string>
 </resources>

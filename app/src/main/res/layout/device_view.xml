@@ -4,30 +4,33 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    tools:weightSum="7">
+    tools:weightSum="6">
 
     <ImageView
         android:layout_weight="1"
         android:id="@+id/ic_bluetooth_status"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_margin="@dimen/text_margin"
-        android:src="@drawable/ic_bluetooth" />
+        android:src="@drawable/ic_bluetooth"
+        android:contentDescription="@string/iv_desc_bt_icon" />
 
     <TextView
-        android:layout_weight="5"
+        android:layout_weight="4"
         android:id="@+id/device_name"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
+        android:layout_gravity="center_vertical"
         android:layout_margin="@dimen/text_margin"
         android:textColor="@color/colorPrimaryDark"
-        android:textSize="24sp"
+        android:textSize="16sp"
         android:textStyle="bold" />
 
     <ProgressBar
         android:layout_weight="1"
+        android:minWidth="0dp"
+        android:maxWidth="0dp"
         android:id="@+id/progress_loader"
         style="?android:attr/progressBarStyle"
         android:layout_width="wrap_content"

@@ -2,6 +2,7 @@ package umg.ingciberneticasistemas.morvi.adapter;
 
 import android.bluetooth.BluetoothDevice;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,19 +11,24 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 import umg.ingciberneticasistemas.morvi.R;
 
 /**
+ * DeviceAdapter: Adaptador para la lista de dispositivos encontrados por bluetooth.
  * Created by luchavez on 16/03/2017.
  */
 
 public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHolder> {
 
-    private ArrayList<BluetoothDevice> devices;
+    private List<BluetoothDevice> devices;
+    private HashMap<String, Integer> devices_existence;
 
     public DeviceAdapter(ArrayList<BluetoothDevice> devices){
         this.devices = devices;
+        devices_existence = new HashMap<>();
     }
 
     @Override
@@ -34,9 +40,13 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
 
     @Override
     public void onBindViewHolder(DeviceHolder holder, int position) {
-        holder.setDeviceName(devices.get(position).getName());
+        String name = devices.get(position).getName();
+        if (name == null || name.isEmpty()){
+            name = devices.get(position).getAddress();
+        }
+        holder.setDeviceName(name);
         holder.setBTIcon(false);
-        holder.showPB(true);
+        holder.showPB(false);
     }
 
     @Override
@@ -44,9 +54,27 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
         return devices.size();
     }
 
+    /**
+     * addDevice: Agregar un dispositivo a la lista. Si ya se encuentra en ella, se checa si
+     * el anterior tiene nombre nulo, y el nuevo tiene un nombre valido, entonces se saca el
+     * anterior y se introduce el nuevo a la lista.
+     * @param device dispositivo a agregar.
+     */
     public void addDevice(BluetoothDevice device){
-        devices.add(device);
-        notifyItemInserted(devices.size() - 1);
+        String address = device.getAddress();
+        if (!devices_existence.containsKey(address)) {
+            devices.add(device);
+            devices_existence.put(device.getAddress(), devices.size() - 1);
+            Log.i("Adapter", "added: " + device);
+            notifyItemInserted(devices.size() - 1);
+        } else {
+            int index = devices_existence.get(address);
+            String old_name = devices.get(index).getName();
+            if (old_name == null && device.getName() != null){
+                devices.remove(index);
+                devices.add(device);
+            }
+        }
     }
 
     public static class DeviceHolder extends RecyclerView.ViewHolder
