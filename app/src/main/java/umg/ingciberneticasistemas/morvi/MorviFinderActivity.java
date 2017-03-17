@@ -142,23 +142,22 @@ public class MorviFinderActivity extends AppCompatActivity {
             super.onConnectionStateChange(gatt, status, newState);
 
             //Checa cual es el nuevo estado y notifica al usuario
-            if (status == BluetoothGatt.GATT_SUCCESS){
-                if (newState == BluetoothGatt.STATE_CONNECTING) {
+            switch(newState){
+                case BluetoothGatt.STATE_CONNECTING:
                     Toast.makeText(MorviFinderActivity.this,
-                            getString(R.string.toast_gatt_connecting), Toast.LENGTH_SHORT).show();
-                }
-                else if (newState == BluetoothGatt.STATE_CONNECTED) {
+                        getString(R.string.toast_gatt_connecting), Toast.LENGTH_SHORT).show();
+
+                case BluetoothGatt.STATE_CONNECTED:
                     Toast.makeText(MorviFinderActivity.this,
-                            getString(R.string.toast_gatt_connected), Toast.LENGTH_SHORT).show();
-                }
-                else if (newState == BluetoothGatt.STATE_DISCONNECTING) {
+                        getString(R.string.toast_gatt_connected), Toast.LENGTH_SHORT).show();
+
+                case BluetoothGatt.STATE_DISCONNECTING:
                     Toast.makeText(MorviFinderActivity.this,
-                            getString(R.string.toast_gatt_disconnecting), Toast.LENGTH_SHORT).show();
-                }
-                else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
+                        getString(R.string.toast_gatt_disconnecting), Toast.LENGTH_SHORT).show();
+
+                case BluetoothGatt.STATE_DISCONNECTED:
                     Toast.makeText(MorviFinderActivity.this,
-                            getString(R.string.toast_gatt_disconnected), Toast.LENGTH_SHORT).show();
-                }
+                        getString(R.string.toast_gatt_disconnected), Toast.LENGTH_SHORT).show();
             }
         }
 
@@ -234,6 +233,7 @@ public class MorviFinderActivity extends AppCompatActivity {
         device_adapter.setOnDeviceClickListener(new DeviceAdapter.OnDeviceClickListener() {
             @Override
             public void onClick(View v, int position) {
+                //Si pulsan un dispositivo se inicia la conexion GATT
                 BluetoothDevice device = device_adapter.getDeviceInPosition(position);
                 ble_gatt = device.connectGatt(MorviFinderActivity.this, false, ble_gatt_callback);
             }
@@ -339,7 +339,7 @@ public class MorviFinderActivity extends AppCompatActivity {
                 dialog.show(getFragmentManager(), REQUEST_LOCATION_DIALOG_TAG);
             } else {
                 ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.READ_CONTACTS},
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                         PERMISSION_LOCATION_ID);
             }
             return;
@@ -377,6 +377,8 @@ public class MorviFinderActivity extends AppCompatActivity {
             progress_bt_find.setVisibility(View.VISIBLE);
             ble_scanner.startScan(ble_scan_callback);
             scanning = true;
+            Toast.makeText(MorviFinderActivity.this,
+                    getString(R.string.toast_searching_devices1), Toast.LENGTH_SHORT).show();
         } else {
             progress_bt_find.setVisibility(View.INVISIBLE);
             ble_scanner.stopScan(ble_scan_callback);
@@ -393,8 +395,6 @@ public class MorviFinderActivity extends AppCompatActivity {
         if (!scanning){
             device_adapter.clearList();
             searchDevices();
-            Toast.makeText(MorviFinderActivity.this,
-                    getString(R.string.toast_searching_devices1), Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(MorviFinderActivity.this,
                     getString(R.string.toast_searching_devices2), Toast.LENGTH_SHORT).show();
