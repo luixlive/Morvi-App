@@ -10,4 +10,6 @@
     <string name="simple_dialog_cancel">Nope</string>
 
     <string name="iv_desc_bt_icon">Indicates if the device is connected or not</string>
+
+    <string name="toast_searching_devices">Looking for Morvi…</string>
 </resources>

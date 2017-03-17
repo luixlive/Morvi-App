@@ -15,6 +15,8 @@ public class SplashScreenActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //Lo unico que hace es iniciar la activity de busqueda de dispositivos (asi se debe
+        //implementar una splash screes segun las buenas practicas)
         Intent intent = new Intent(this, MorviFinderActivity.class);
         startActivity(intent);
         finish();
