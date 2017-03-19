@@ -4,26 +4,21 @@ import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothManager;
-import android.bluetooth.le.BluetoothLeScanner;
-import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
+import android.support.design.widget.AppBarLayout;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -31,10 +26,10 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import java.util.LinkedList;
-import java.util.List;
 
 import umg.ingciberneticasistemas.morvi.dialogs.SimpleDialog;
 import umg.ingciberneticasistemas.morvi.adapters.DeviceAdapter;
+import umg.ingciberneticasistemas.morvi.drivers.BluetoothDriver;
 
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
@@ -46,19 +41,19 @@ import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 public class MorviFinderActivity extends AppCompatActivity {
 
     /**
+     * KEY_BUNDLE_BT_DRIVER: Identificador del driver de bt para ser pasado por bundle.
+     */
+    public final static String KEY_BUNDLE_BT_DRIVER = "btd";
+
+    /**
      * REQUEST_ENABLE_BT: Id para la solicitud al usuario para que active el bt.
      */
-    public final static int REQUEST_ENABLE_BT = 100;
+    private final static int REQUEST_ENABLE_BT = 100;
 
     /**
      * PERMISSION_LOCATION_ID: Id para el permiso de ubicacion.
      */
-    public final static int PERMISSION_LOCATION_ID = 200;
-
-    /**
-     * SCAN_PERIOD: Tiempo que busca dispositivos cercanos cada vez que se solicita.
-     */
-    private static final long SCAN_PERIOD = 20000;
+    private final static int PERMISSION_LOCATION_ID = 200;
 
     /**
      * REQUEST_LOCATION_DIALOG_TAG: Tag que se envia al dialogo para solicitar ubicacion al usuario.
@@ -67,35 +62,15 @@ public class MorviFinderActivity extends AppCompatActivity {
 
 
     /**
-     * bt_adapter: Adaptador para uso de ble.
-     */
-    private BluetoothAdapter bt_adapter;
-
-    /**
-     * ble_scanner: Objeto que busca dispositivos cercanos por medio de ble.
-     */
-    private BluetoothLeScanner ble_scanner;
-
-    /**
-     * ble_gatt: Driver para la conexion a GATT server (BLE).
-     */
-    private BluetoothGatt ble_gatt;
-
-    /**
-     * search_handler: Hilo en segundo plano para pausar la busqueda cuando pase el tiempo indicado.
-     */
-    private Handler search_handler;
-
-    /**
      * device_adapter: Adaptador para la lista RecyclerVIew que muestra los dispositivos
      * encontrados.
      */
     private DeviceAdapter device_adapter;
 
     /**
-     * scanning: Bandera que indica sei actualmente se estan buscando dispositivos.
+     * bt_driver: Manejador de todos los procesos relacionados a bluetooth.
      */
-    private boolean scanning = false;
+    private BluetoothDriver bt_driver;
 
 
     /**
@@ -105,116 +80,105 @@ public class MorviFinderActivity extends AppCompatActivity {
 
 
     /**
-     * ble_scan_callback: Escucha eventos de busqueda de dispositivos.
+     * bt_driver_listener: Manejo de eventos del driver de bt.
      */
-    private ScanCallback ble_scan_callback = new ScanCallback() {
-        @Override
-        public void onScanResult(int callbackType, ScanResult result) {
-            super.onScanResult(callbackType, result);
+    private BluetoothDriver.BluetoothDriverListener bt_driver_listener =
+            new BluetoothDriver.BluetoothDriverListener() {
 
-            //Encontro un dispositivo y este se agrega a la lista
-            BluetoothDevice device = result.getDevice();
+        private final static char CLEAR_LIST = 0;
+        private final static char HIDE_PROGRESS_BAR = 1;
+
+        @Override
+        public void bluetoothOff() {
+            //No se puede acceder al bt, se pide al usuario que lo encienda
+            Intent enable_bt = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enable_bt, REQUEST_ENABLE_BT);
+        }
+
+        @Override
+        public void newDeviceScanned(BluetoothDevice device) {
             device_adapter.addDevice(device);
         }
 
         @Override
-        public void onBatchScanResults(List<ScanResult> results) {
-            super.onBatchScanResults(results);
+        public void scanning() {
+            device_adapter.clearList();
+            progress_bt_find.setVisibility(View.VISIBLE);
+            Toast.makeText(MorviFinderActivity.this, getString(R.string.toast_searching_devices1),
+                    Toast.LENGTH_SHORT).show();
         }
 
         @Override
-        public void onScanFailed(int errorCode) {
-            super.onScanFailed(errorCode);
+        public void alreadyScanning() {
+            Toast.makeText(MorviFinderActivity.this, getString(R.string.toast_searching_devices2),
+                    Toast.LENGTH_SHORT).show();
+        }
 
+        @Override
+        public void scanFinished() {
+            progress_bt_find.setVisibility(View.INVISIBLE);
+        }
+
+        @Override
+        public void scanFailed() {
             Toast.makeText(MorviFinderActivity.this, getString(R.string.toast_scan_failed),
                     Toast.LENGTH_LONG).show();
         }
-    };
-
-    /**
-     * ble_gatt_callback: Callback para manejar conexiones GATT de ble.
-     */
-    private final BluetoothGattCallback ble_gatt_callback = new BluetoothGattCallback() {
-
-        //TODO remover los callback innecesarios
 
         @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            super.onConnectionStateChange(gatt, status, newState);
-
-            String message = "";
-
-            //Checa cual es el nuevo estado y notifica al usuario
-            switch(newState){
-                case BluetoothGatt.STATE_CONNECTING:
-                    message = getString(R.string.toast_gatt_connecting);
-                    break;
-                case BluetoothGatt.STATE_CONNECTED:
-                    message = getString(R.string.toast_gatt_connected);
-                    break;
-                case BluetoothGatt.STATE_DISCONNECTING:
-                    message = getString(R.string.toast_gatt_disconnecting);
-                    break;
-                case BluetoothGatt.STATE_DISCONNECTED:
-                    message = getString(R.string.toast_gatt_disconnected);
-            }
-
-            showInUIThread(message);
+        public void alreadyConnecting() {
+            Toast.makeText(MorviFinderActivity.this, getString(R.string.toast_connect_wait),
+                    Toast.LENGTH_LONG).show();
         }
 
         @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            super.onServicesDiscovered(gatt, status);
+        public void connectedToDevice(BluetoothGatt ble_gatt) {
+            //Se conecto a un dispositivo, se borra la lista y se inicia la nueva activity pasando
+            //el driver de bt
+            toastInUIThread(getString(R.string.toast_gatt_connected));
+            listActionstInUIThread(CLEAR_LIST);
+
+            Intent intent = new Intent(MorviFinderActivity.this, ControllerActivity.class);
+            Bundle bundle = new Bundle();
+            bundle.putSerializable(KEY_BUNDLE_BT_DRIVER, bt_driver);
+            intent.putExtras(bundle);
+            startActivity(intent);
         }
 
         @Override
-        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicRead(gatt, characteristic, status);
+        public void disconnectedFromDevice(BluetoothGatt ble_gatt) {
+            toastInUIThread(getString(R.string.toast_gatt_disconnected));
+            listActionstInUIThread(HIDE_PROGRESS_BAR);
         }
 
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicWrite(gatt, characteristic, status);
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            super.onCharacteristicChanged(gatt, characteristic);
-        }
-
-        @Override
-        public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            super.onDescriptorRead(gatt, descriptor, status);
-        }
-
-        @Override
-        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            super.onDescriptorWrite(gatt, descriptor, status);
-        }
-
-        @Override
-        public void onReliableWriteCompleted(BluetoothGatt gatt, int status) {
-            super.onReliableWriteCompleted(gatt, status);
-        }
-
-        @Override
-        public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
-            super.onReadRemoteRssi(gatt, rssi, status);
-        }
-
-        @Override
-        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
-            super.onMtuChanged(gatt, mtu, status);
-        }
-
-        private void showInUIThread(final String message){
+        /**
+         * showInUIThread: Mostrar dialogos Toast en el hiilo de UI.
+         * @param message message to show
+         */
+        private void toastInUIThread(final String message){
             MorviFinderActivity.this.runOnUiThread(new Runnable() {
                 public void run() {
                     Toast.makeText(MorviFinderActivity.this, message, Toast.LENGTH_SHORT).show();
                 }
             });
         }
+
+        /**
+         * listActionstInUIThread: Ejecuta acciones sobre la lista en el hilo de UI.
+         */
+        private void listActionstInUIThread(final char selection){
+            MorviFinderActivity.this.runOnUiThread(new Runnable() {
+                public void run() {
+                    if (selection == CLEAR_LIST) {
+                        device_adapter.clearList();
+                    } else if (selection == HIDE_PROGRESS_BAR){
+                        device_adapter.hideProgressBar();
+                    }
+                }
+            });
+        }
     };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -228,11 +192,9 @@ public class MorviFinderActivity extends AppCompatActivity {
 
         progress_bt_find = (ProgressBar)findViewById(R.id.progress_bt_find);
 
-        //Se obtienen instancias de los drivers de bluetooth
-        BluetoothManager bt_manager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
-        bt_adapter = bt_manager.getAdapter();
-        ble_scanner = bt_adapter.getBluetoothLeScanner();
-        search_handler = new Handler();
+        //Inicializa el manejador de bt
+        bt_driver = new BluetoothDriver((BluetoothManager)getSystemService(
+                Context.BLUETOOTH_SERVICE), bt_driver_listener);
 
         //La lista es tipo RecyclerView
         RecyclerView list_devices = (RecyclerView)findViewById(R.id.recycler_view_devices);
@@ -242,10 +204,14 @@ public class MorviFinderActivity extends AppCompatActivity {
         device_adapter.setOnDeviceClickListener(new DeviceAdapter.OnDeviceClickListener() {
             @Override
             public void onClick(View v, int position) {
-                //Si pulsan un dispositivo se inicia la conexion GATT
+                //Si pulsan un dispositivo se contrae la barra superior
+                ((AppBarLayout)MorviFinderActivity.this.findViewById(R.id.app_bar_morvi_finder)).
+                        setExpanded(false);
+                //Se inicia la conexion GATT
+                bt_driver.stopScan();
+                device_adapter.showProgressBar(position);
                 BluetoothDevice device = device_adapter.getDeviceInPosition(position);
-                Log.i("MORVI", "CLICK A " + device.getAddress());
-                ble_gatt = device.connectGatt(MorviFinderActivity.this, false, ble_gatt_callback);
+                bt_driver.connectGATT(device, MorviFinderActivity.this);
             }
         });
         list_devices.setAdapter(device_adapter);
@@ -265,15 +231,21 @@ public class MorviFinderActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onDestroy(){
-        if (scanning){
-            ble_scanner.stopScan(ble_scan_callback);
-        }
+    public void onResume(){
+        //Cada que se resuma la actividad se checa si cambiaron las preferencias
+        SharedPreferences shared_pref = PreferenceManager.getDefaultSharedPreferences(this);
+        int bt_search_time = Integer.valueOf(shared_pref.getString(
+                SettingsActivity.KEY_PREF_SEARCH_TIME,
+                SettingsActivity.KEY_PREF_SEARCH_TIME_DEFAULT));
 
-        if (ble_gatt != null) {
-            ble_gatt.close();
-            ble_gatt = null;
-        }
+        bt_driver.changeScanTime(bt_search_time);
+
+        super.onResume();
+    }
+
+    @Override
+    public void onDestroy(){
+        bt_driver.close();
 
         super.onDestroy();
     }
@@ -291,6 +263,7 @@ public class MorviFinderActivity extends AppCompatActivity {
         int id = item.getItemId();
         //TODO MENU
         if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -355,45 +328,7 @@ public class MorviFinderActivity extends AppCompatActivity {
             return;
         }
 
-        if (bt_adapter == null || !bt_adapter.isEnabled()) {
-            //No se puede acceder al bt, se pide al usuario que lo encienda
-            Intent enable_bt = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enable_bt, REQUEST_ENABLE_BT);
-            return;
-        }
-
-        if (!scanning) {
-            //Si no se esta buscando ya, se comienza a buscar
-            search_handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    //Despues de SCAN_PERIOD segundos, se detiene la busqueda
-                    scan(false);
-                }
-            }, SCAN_PERIOD);
-
-            scan(true);
-        }
-    }
-
-    /**
-     * scan: Hace las acciones correspondientes para escanear/dejar de escanear dispositivos.
-     * @param scan escanear ?
-     */
-    private void scan(boolean scan){
-        //Si se quiere escanear, se muestra la barra de progreso, se bloquea el boton y comienza
-        //a buscar. Si se desea detener, hace justo lo contrario
-        if (scan){
-            progress_bt_find.setVisibility(View.VISIBLE);
-            ble_scanner.startScan(ble_scan_callback);
-            scanning = true;
-            Toast.makeText(MorviFinderActivity.this,
-                    getString(R.string.toast_searching_devices1), Toast.LENGTH_SHORT).show();
-        } else {
-            progress_bt_find.setVisibility(View.INVISIBLE);
-            ble_scanner.stopScan(ble_scan_callback);
-            scanning = false;
-        }
+        bt_driver.scan();
     }
 
     /**
@@ -401,13 +336,6 @@ public class MorviFinderActivity extends AppCompatActivity {
      * @param v vista del FAB
      */
     public void fabClicked(View v){
-        //Inicia busqueda si esta no esta en ejecucion ya y muestra un texto indicador
-        if (!scanning){
-            device_adapter.clearList();
-            searchDevices();
-        } else {
-            Toast.makeText(MorviFinderActivity.this,
-                    getString(R.string.toast_searching_devices2), Toast.LENGTH_SHORT).show();
-        }
+        searchDevices();
     }
 }

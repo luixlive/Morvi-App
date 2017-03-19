@@ -2,6 +2,7 @@
     <string name="app_name">Morvi</string>
     <string name="action_settings">Settings</string>
     <string name="morvi_finder_activity">Morvi Finder</string>
+    <string name="controller_activity">Controller</string>
 
     <string name="permission_dialog_title">Would you… please?</string>
     <string name="permission_dialog_location">We need you to give us access to your location so we
@@ -14,9 +15,21 @@
     <string name="toast_searching_devices1">Looking for Morvi…</string>
     <string name="toast_searching_devices2">We are searching :)</string>
     <string name="toast_scan_failed">Something went wrong while scanning :(</string>
-    <string name="toast_gatt_connecting">Connecting with Morvi…</string>
     <string name="toast_gatt_connected">Morvi can hear us!</string>
-    <string name="toast_gatt_disconnecting">Disconnecting Morvi…</string>
     <string name="toast_gatt_disconnected">Disconnected</string>
+    <string name="toast_connect_wait">Trying to connect…</string>
 
+    <string name="preferences_title_bluetooth_search_secs">Bluetooth Search Time</string>
+    <string name="bt_devices_search_time_default">10</string>
+    <string name="preferences_title_bluetooth_search_secs_desc">Searching for Morvi consume a lot of
+        battery</string>
+    <string name="preferences_category_bluetooth">Bluetooth</string>
+    <string name="preferences_category_bluetooth_key">key_pcb</string>
+    <string name="preferences_lp_bluetooth_search_time">key_plpbst</string>
+
+    <string-array name="bt_devices_search_time">
+        <item>10</item>
+        <item>15</item>
+        <item>20</item>
+    </string-array>
 </resources>

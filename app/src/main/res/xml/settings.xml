@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="@string/preferences_category_bluetooth"
+        android:key="@string/preferences_category_bluetooth_key">
+
+        <ListPreference
+            android:key="@string/preferences_lp_bluetooth_search_time"
+            android:title="@string/preferences_title_bluetooth_search_secs"
+            android:summary="@string/preferences_title_bluetooth_search_secs_desc"
+            android:entries="@array/bt_devices_search_time"
+            android:entryValues="@array/bt_devices_search_time"
+            android:defaultValue="@string/bt_devices_search_time_default" />
+
+    </PreferenceCategory>
+</PreferenceScreen>
