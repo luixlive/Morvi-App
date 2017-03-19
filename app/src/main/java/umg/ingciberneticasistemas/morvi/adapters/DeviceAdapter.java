@@ -1,4 +1,4 @@
-package umg.ingciberneticasistemas.morvi.adapter;
+package umg.ingciberneticasistemas.morvi.adapters;
 
 import android.bluetooth.BluetoothDevice;
 import android.support.v7.app.AppCompatActivity;

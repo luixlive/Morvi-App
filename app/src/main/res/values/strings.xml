@@ -17,6 +17,6 @@
     <string name="toast_gatt_connecting">Connecting with Morvi…</string>
     <string name="toast_gatt_connected">Morvi can hear us!</string>
     <string name="toast_gatt_disconnecting">Disconnecting Morvi…</string>
-    <string name="toast_gatt_disconnected">Good bye Morvi!</string>
+    <string name="toast_gatt_disconnected">Disconnected</string>
 
 </resources>

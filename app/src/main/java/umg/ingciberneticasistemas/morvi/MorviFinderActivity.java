@@ -23,6 +23,7 @@ import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -32,8 +33,8 @@ import android.widget.Toast;
 import java.util.LinkedList;
 import java.util.List;
 
-import umg.ingciberneticasistemas.morvi.Dialog.SimpleDialog;
-import umg.ingciberneticasistemas.morvi.adapter.DeviceAdapter;
+import umg.ingciberneticasistemas.morvi.dialogs.SimpleDialog;
+import umg.ingciberneticasistemas.morvi.adapters.DeviceAdapter;
 
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
@@ -141,24 +142,24 @@ public class MorviFinderActivity extends AppCompatActivity {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             super.onConnectionStateChange(gatt, status, newState);
 
+            String message = "";
+
             //Checa cual es el nuevo estado y notifica al usuario
             switch(newState){
                 case BluetoothGatt.STATE_CONNECTING:
-                    Toast.makeText(MorviFinderActivity.this,
-                        getString(R.string.toast_gatt_connecting), Toast.LENGTH_SHORT).show();
-
+                    message = getString(R.string.toast_gatt_connecting);
+                    break;
                 case BluetoothGatt.STATE_CONNECTED:
-                    Toast.makeText(MorviFinderActivity.this,
-                        getString(R.string.toast_gatt_connected), Toast.LENGTH_SHORT).show();
-
+                    message = getString(R.string.toast_gatt_connected);
+                    break;
                 case BluetoothGatt.STATE_DISCONNECTING:
-                    Toast.makeText(MorviFinderActivity.this,
-                        getString(R.string.toast_gatt_disconnecting), Toast.LENGTH_SHORT).show();
-
+                    message = getString(R.string.toast_gatt_disconnecting);
+                    break;
                 case BluetoothGatt.STATE_DISCONNECTED:
-                    Toast.makeText(MorviFinderActivity.this,
-                        getString(R.string.toast_gatt_disconnected), Toast.LENGTH_SHORT).show();
+                    message = getString(R.string.toast_gatt_disconnected);
             }
+
+            showInUIThread(message);
         }
 
         @Override
@@ -205,6 +206,14 @@ public class MorviFinderActivity extends AppCompatActivity {
         public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
             super.onMtuChanged(gatt, mtu, status);
         }
+
+        private void showInUIThread(final String message){
+            MorviFinderActivity.this.runOnUiThread(new Runnable() {
+                public void run() {
+                    Toast.makeText(MorviFinderActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     };
 
     @Override
@@ -235,6 +244,7 @@ public class MorviFinderActivity extends AppCompatActivity {
             public void onClick(View v, int position) {
                 //Si pulsan un dispositivo se inicia la conexion GATT
                 BluetoothDevice device = device_adapter.getDeviceInPosition(position);
+                Log.i("MORVI", "CLICK A " + device.getAddress());
                 ble_gatt = device.connectGatt(MorviFinderActivity.this, false, ble_gatt_callback);
             }
         });
