@@ -9,7 +9,7 @@
     tools:context="umg.ingciberneticasistemas.morvi.MorviFinderActivity">
 
     <android.support.design.widget.AppBarLayout
-        android:id="@+id/app_bar"
+        android:id="@+id/app_bar_morvi_finder"
         android:fitsSystemWindows="true"
         android:layout_height="@dimen/app_bar_height"
         android:layout_width="match_parent"
@@ -43,7 +43,7 @@
         android:layout_margin="@dimen/fab_margin"
         app:fabSize="normal"
         android:onClick="fabClicked"
-        app:layout_anchor="@id/app_bar"
+        app:layout_anchor="@id/app_bar_morvi_finder"
         app:layout_anchorGravity="bottom|end"
         app:srcCompat="@drawable/ic_autorenew" />
 

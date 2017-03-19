@@ -1,4 +1,4 @@
-package umg.ingciberneticasistemas.morvi.Dialog;
+package umg.ingciberneticasistemas.morvi.dialogs;
 
 import android.app.AlertDialog;
 import android.app.Dialog;

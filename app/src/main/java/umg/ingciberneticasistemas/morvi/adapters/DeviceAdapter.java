@@ -1,4 +1,4 @@
-package umg.ingciberneticasistemas.morvi.adapter;
+package umg.ingciberneticasistemas.morvi.adapters;
 
 import android.bluetooth.BluetoothDevice;
 import android.support.v7.app.AppCompatActivity;
@@ -27,9 +27,21 @@ import umg.ingciberneticasistemas.morvi.R;
 public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHolder> {
 
     /**
-     * devices: Dispositivos agregados a la lista
+     * NO_DEVICE_CONNECTING: Valor que indica que actualmente la barra de progreso no esta activa
+     * en ningun dispositivo
+     */
+    private final static int NO_PROGRESS_BAR = -1;
+
+
+    /**
+     * devices: Dispositivos agregados a la lista.
      */
     private final List<BluetoothDevice> devices;
+
+    /**
+     * show_pb: Indica si hay que mostrar la barra de progreso de cada item.
+     */
+    private final List<Boolean> show_pb;
 
     /**
      * devices_existence: HashMap con key: mac address; value: posicion en la lista. Sirve para
@@ -49,12 +61,19 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
     private OnDeviceClickListener listener;
 
     /**
+     * progress_bar_position: Indica a que dispositivo se esta tratando de conectar actualmente o -1 si
+     * no se esta tratando de conectar.
+     */
+    private int progress_bar_position = NO_PROGRESS_BAR;
+
+    /**
      * DeviceAdapter
      * @param devices dispositivos a agregar desde un comienzo.
      * @param activity_context activity padre donde se ubica la lista.
      */
     public DeviceAdapter(LinkedList<BluetoothDevice> devices, AppCompatActivity activity_context){
         this.devices = devices;
+        this.show_pb = new LinkedList<>();
         devices_existence = new HashMap<>();
         this.activity_context = activity_context;
     }
@@ -78,7 +97,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
         //Se configuran los valores de este item
         holder.setDeviceName(name);
         holder.setBTIcon(false);
-        holder.showPB(false);
+        holder.showPB(show_pb.get(position));
     }
 
     @Override
@@ -98,6 +117,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
         //Si no existia el dispositivo en la lista, se agrega
         if (!devices_existence.containsKey(address)) {
             devices.add(device);
+            show_pb.add(false);
             devices_existence.put(device.getAddress(), devices.size() - 1);
             notifyItemInserted(devices.size() - 1);
         }
@@ -108,8 +128,35 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
             String old_name = devices.get(index).getName();
             if (old_name == null && device.getName() != null){
                 devices.remove(index);
+                show_pb.remove(index);
                 devices.add(device);
+                show_pb.add(false);
             }
+        }
+    }
+
+    /**
+     * showProgressBar: Muestra la barra de progreso del dispositivo en la posicion indicada.
+     * @param position posicion del dispositivo
+     */
+    public void showProgressBar(int position){
+        //Si trata de colocar una barra de progreso, pero actualmente esta en otro dispositivo, no
+        //se hace nada
+        if (progress_bar_position == NO_PROGRESS_BAR) {
+            show_pb.set(position, true);
+            notifyItemChanged(position);
+            progress_bar_position = position;
+        }
+    }
+
+    /**
+     * hideProgressBar: Esconde la barra de progreso si se esta mostrando actualmente.
+     */
+    public void hideProgressBar(){
+        if (progress_bar_position != NO_PROGRESS_BAR) {
+            show_pb.set(progress_bar_position, false);
+            notifyItemChanged(progress_bar_position);
+            progress_bar_position = -1;
         }
     }
 
@@ -118,6 +165,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
      */
     public void clearList(){
         devices.clear();
+        show_pb.clear();
         devices_existence.clear();
         notifyDataSetChanged();
     }
