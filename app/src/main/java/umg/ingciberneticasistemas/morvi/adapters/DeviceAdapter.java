@@ -167,6 +167,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
         devices.clear();
         show_pb.clear();
         devices_existence.clear();
+        progress_bar_position = NO_PROGRESS_BAR;
         notifyDataSetChanged();
     }
 

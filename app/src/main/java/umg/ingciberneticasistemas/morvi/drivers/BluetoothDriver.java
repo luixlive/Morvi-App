@@ -13,15 +13,13 @@ import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.os.Handler;
 
-import java.io.Serializable;
-
 /**
  * Created by luchavez on 18/03/2017.
  * BluetoothDriver: Driver para manejar lo relacionado a blouetooth, implementa parcelable para
  * poder enviar a traves de intents.
  */
 
-public class BluetoothDriver implements Serializable {
+public class BluetoothDriver {
 
     /**
      * bt_adapter: Adaptador para uso de ble.
@@ -163,13 +161,14 @@ public class BluetoothDriver implements Serializable {
 
     /**
      * @param bt_manager manejador de configuracinoes de BT
-     * @param listener BluetoothDriverListener a suscribir para los eventos
      */
-    public BluetoothDriver(BluetoothManager bt_manager, BluetoothDriverListener listener){
+    public BluetoothDriver(BluetoothManager bt_manager){
         bt_adapter = bt_manager.getAdapter();
         ble_scanner = bt_adapter.getBluetoothLeScanner();
         search_handler = new Handler();
+    }
 
+    public void onBluetoothDriverListener(BluetoothDriverListener listener){
         this.listener = listener;
     }
 
