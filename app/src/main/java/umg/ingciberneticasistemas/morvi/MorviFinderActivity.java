@@ -79,15 +79,21 @@ public class MorviFinderActivity extends AppCompatActivity {
      */
     private AppBarLayout app_bar;
 
+    /**
+     * position_clicked: Dispositivo clickeado, se almacena para cambiar su estado de conexion
+     */
+    private int position_clicked;
+
 
     /**
      * bt_driver_listener: Manejo de eventos del driver de bt.
      */
-    private BluetoothDriver.BluetoothDriverListener bt_driver_listener =
-            new BluetoothDriver.BluetoothDriverListener() {
+    private BluetoothDriver.BluetoothDriverConnectionListener bt_driver_listener =
+            new BluetoothDriver.BluetoothDriverConnectionListener() {
 
         private final static char CLEAR_LIST = 0;
         private final static char HIDE_PROGRESS_BAR = 1;
+        private final static char CHANGE_CONNECTION = 2;
 
         @Override
         public void bluetoothOff() {
@@ -134,6 +140,11 @@ public class MorviFinderActivity extends AppCompatActivity {
 
         @Override
         public void connectedToDevice(BluetoothGatt ble_gatt) {
+            listActionstInUIThread(CHANGE_CONNECTION);
+        }
+
+        @Override
+        public void servicesDiscoveredDevice() {
             //Se conecto a un dispositivo, se borra la lista y se inicia la nueva activity
             toastInUIThread(getString(R.string.toast_gatt_connected));
             listActionstInUIThread(CLEAR_LIST);
@@ -141,14 +152,7 @@ public class MorviFinderActivity extends AppCompatActivity {
             startActivity(new Intent(MorviFinderActivity.this, ControllerActivity.class));
         }
 
-        @Override
-        public void disconnectedFromDevice(BluetoothGatt ble_gatt) {
-            toastInUIThread(getString(R.string.toast_gatt_disconnected));
-            listActionstInUIThread(HIDE_PROGRESS_BAR);
-            expandAppBar();
-        }
-
-        /**
+                /**
          * showInUIThread: Mostrar dialogos Toast en el hiilo de UI.
          * @param message message to show
          */
@@ -170,21 +174,13 @@ public class MorviFinderActivity extends AppCompatActivity {
                         device_adapter.clearList();
                     } else if (selection == HIDE_PROGRESS_BAR){
                         device_adapter.hideProgressBar();
+                    } else if (selection == CHANGE_CONNECTION){
+                        device_adapter.setDeviceConnected(position_clicked);
                     }
                 }
             });
         }
 
-        /**
-         * expandAppBar: Expande la barra superior para mostrar el boton refresh en el hilo de UI.
-         */
-        private void expandAppBar(){
-            MorviFinderActivity.this.runOnUiThread(new Runnable() {
-                public void run() {
-                    app_bar.setExpanded(true);
-                }
-            });
-        }
     };
 
 
@@ -292,6 +288,7 @@ public class MorviFinderActivity extends AppCompatActivity {
                 device_adapter.showProgressBar(position);
                 BluetoothDevice device = device_adapter.getDeviceInPosition(position);
                 bt_driver.connectGATT(device, MorviFinderActivity.this);
+                position_clicked = position;
             }
         });
         list_devices.setAdapter(device_adapter);

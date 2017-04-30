@@ -43,6 +43,8 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
      */
     private final List<Boolean> show_pb;
 
+    private final List<Boolean> connection_state;
+
     /**
      * devices_existence: HashMap con key: mac address; value: posicion en la lista. Sirve para
      * encontrar rapidamente si un dispositivo ya fue encontrado y en que posicion esta.
@@ -74,6 +76,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
     public DeviceAdapter(LinkedList<BluetoothDevice> devices, AppCompatActivity activity_context){
         this.devices = devices;
         this.show_pb = new LinkedList<>();
+        this.connection_state = new LinkedList<>();
         devices_existence = new HashMap<>();
         this.activity_context = activity_context;
     }
@@ -96,7 +99,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
 
         //Se configuran los valores de este item
         holder.setDeviceName(name);
-        holder.setBTIcon(false);
+        holder.setBTIcon(connection_state.get(position));
         holder.showPB(show_pb.get(position));
     }
 
@@ -118,6 +121,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
         if (!devices_existence.containsKey(address)) {
             devices.add(device);
             show_pb.add(false);
+            connection_state.add(false);
             devices_existence.put(device.getAddress(), devices.size() - 1);
             notifyItemInserted(devices.size() - 1);
         }
@@ -129,8 +133,11 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
             if (old_name == null && device.getName() != null){
                 devices.remove(index);
                 show_pb.remove(index);
+                connection_state.remove(index);
                 devices.add(device);
                 show_pb.add(false);
+                connection_state.add(false);
+                notifyItemChanged(index);
             }
         }
     }
@@ -147,6 +154,15 @@ public class DeviceAdapter extends RecyclerView.Adapter<DeviceAdapter.DeviceHold
             notifyItemChanged(position);
             progress_bar_position = position;
         }
+    }
+
+    /**
+     * setDeviceConnected: Muestra el dispositivo elegido como conectado
+     * @param position posicion del dispositivo
+     */
+    public void setDeviceConnected(int position) {
+        connection_state.set(position, true);
+        notifyItemChanged(position);
     }
 
     /**

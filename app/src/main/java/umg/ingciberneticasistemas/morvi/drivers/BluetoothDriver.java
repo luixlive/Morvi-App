@@ -6,12 +6,17 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.os.Handler;
+import android.util.Log;
+
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Created by luchavez on 18/03/2017.
@@ -20,6 +25,19 @@ import android.os.Handler;
  */
 
 public class BluetoothDriver {
+
+    /**
+     * MORVI_UUID_CHAR: Constante para ubicar la caracteristica de Morvi donde escribir los
+     * comandos.
+     */
+    private static final String MORVI_UUID_CHAR = "";   //TODO DEFINIR UUID
+
+    /**
+     * MORVI_UUID_SERV: Constante para ubicar el servicio de Morvi que contiene la caracteristica
+     * de comunicacion
+     */
+    private static final String MORVI_UUID_SERV = "";   //TODO DEFINIR UUID
+
 
     /**
      * bt_adapter: Adaptador para uso de ble.
@@ -52,14 +70,24 @@ public class BluetoothDriver {
     private boolean connecting = false;
 
     /**
-     * listener: Instancia de BluetoothDriverListener suscrita a los eventos del driver.
+     * conn_listener: Suscripcion a los eventos de conexion del driver.
      */
-    private BluetoothDriverListener listener;
+    private BluetoothDriverConnectionListener conn_listener;
+
+    /**
+     * comm_listener: Suscripcion a los eventos de comunicacion del driver.
+     */
+    private BluetoothDriverCommunicationListener comm_listener;
 
     /**
      * scan_time: Tiempo que dura la busqueda de dispositivos.
      */
     private int scan_time = 10000;
+
+    /**
+     * can_write: Indica si es posible escribir a Morvi en cada instante.
+     */
+    private boolean can_write = false;
 
 
     /**
@@ -72,14 +100,14 @@ public class BluetoothDriver {
 
             //Encontro un dispositivo
             BluetoothDevice device = result.getDevice();
-            listener.newDeviceScanned(device);
+            conn_listener.newDeviceScanned(device);
         }
 
         @Override
         public void onScanFailed(int errorCode) {
             super.onScanFailed(errorCode);
 
-            listener.scanFailed();
+            conn_listener.scanFailed();
         }
     };
 
@@ -99,61 +127,37 @@ public class BluetoothDriver {
             //Checa cual es el nuevo estado y notifica al usuario
             switch(newState){
                 case BluetoothGatt.STATE_CONNECTED:
-                    listener.connectedToDevice(gatt);
+                    conn_listener.connectedToDevice(gatt);
+                    ble_gatt.discoverServices();
                     break;
                 case BluetoothGatt.STATE_DISCONNECTED:
-                    listener.disconnectedFromDevice(gatt);
+                    comm_listener.disconnectedFromDevice(gatt);
+                    can_write = false;
             }
         }
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             super.onServicesDiscovered(gatt, status);
-        }
 
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt,
-                                         BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicRead(gatt, characteristic, status);
-        }
+            conn_listener.servicesDiscoveredDevice();
 
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt,
-                                          BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicWrite(gatt, characteristic, status);
-        }
+            //Lee los servicios del BLE
+            List<BluetoothGattService> dev_services = ble_gatt.getServices();
+            for (BluetoothGattService service : dev_services) {
 
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt,
-                                            BluetoothGattCharacteristic characteristic) {
-            super.onCharacteristicChanged(gatt, characteristic);
-        }
-
-        @Override
-        public void onDescriptorRead(BluetoothGatt gatt,
-                                     BluetoothGattDescriptor descriptor, int status) {
-            super.onDescriptorRead(gatt, descriptor, status);
-        }
-
-        @Override
-        public void onDescriptorWrite(BluetoothGatt gatt,
-                                      BluetoothGattDescriptor descriptor, int status) {
-            super.onDescriptorWrite(gatt, descriptor, status);
-        }
-
-        @Override
-        public void onReliableWriteCompleted(BluetoothGatt gatt, int status) {
-            super.onReliableWriteCompleted(gatt, status);
-        }
-
-        @Override
-        public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
-            super.onReadRemoteRssi(gatt, rssi, status);
-        }
-
-        @Override
-        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
-            super.onMtuChanged(gatt, mtu, status);
+                //Si encuentra el servicio de Morvi, busca la característica
+                if (service.getUuid().toString().equals(MORVI_UUID_SERV)) {
+                    List<BluetoothGattCharacteristic> serv_characteristics =
+                            service.getCharacteristics();
+                    for (BluetoothGattCharacteristic characteristic : serv_characteristics) {
+                        Log.i("BLE DRIVER", "Char: " + characteristic.toString());
+                        if (characteristic.getUuid().toString().equals(MORVI_UUID_CHAR)) {
+                            can_write = true;
+                        }
+                    }
+                }
+            }
         }
 
     };
@@ -168,8 +172,20 @@ public class BluetoothDriver {
         search_handler = new Handler();
     }
 
-    public void onBluetoothDriverListener(BluetoothDriverListener listener){
-        this.listener = listener;
+    /**
+     * onBluetoothDriverListener: Suscribirse a lso eventos de conexion
+     * @param listener BluetoothDriverConnectionListener a suscribir
+     */
+    public void onBluetoothDriverListener(BluetoothDriverConnectionListener listener){
+        conn_listener = listener;
+    }
+
+    /**
+     * onBluetoothDriverListener: Suscribirse a los eventos de comunicacion
+     * @param listener BluetoothDriverCommunicationListener a suscribir
+     */
+    public void onBluetoothDriverListener(BluetoothDriverCommunicationListener listener){
+        comm_listener = listener;
     }
 
     /**
@@ -178,7 +194,7 @@ public class BluetoothDriver {
     public void scan(){
         //Si no se puede acceder al modulo de bt
         if (bt_adapter == null || !bt_adapter.isEnabled()) {
-            listener.bluetoothOff();
+            conn_listener.bluetoothOff();
             return;
         }
 
@@ -190,15 +206,15 @@ public class BluetoothDriver {
                     //Despues de SCAN_PERIOD segundos, se detiene la busqueda
                     ble_scanner.stopScan(ble_scan_callback);
                     scanning = false;
-                    listener.scanFinished();
+                    conn_listener.scanFinished();
                 }
             }, scan_time);
 
             ble_scanner.startScan(ble_scan_callback);
             scanning = true;
-            listener.scanning();
+            conn_listener.scanning();
         } else {
-            listener.alreadyScanning();
+            conn_listener.alreadyScanning();
         }
     }
 
@@ -209,7 +225,7 @@ public class BluetoothDriver {
         if(scanning) {
             ble_scanner.stopScan(ble_scan_callback);
             scanning = false;
-            listener.scanFinished();
+            conn_listener.scanFinished();
         }
     }
 
@@ -222,7 +238,7 @@ public class BluetoothDriver {
         if (!connecting) {
             ble_gatt = device.connectGatt(context, false, ble_gatt_callback);
         } else {
-            listener.alreadyConnecting();
+            conn_listener.alreadyConnecting();
         }
     }
 
@@ -232,6 +248,29 @@ public class BluetoothDriver {
      */
     public void changeScanTime(int scan_time){
         this.scan_time = scan_time * 1000;
+    }
+
+    /**
+     * write: Escribe en la caracteristica de Morvi el comando indicado.
+     * @param command comando segun el protocolo
+     */
+    public void write(char command){
+        if (can_write) {
+            BluetoothGattService service = ble_gatt.getService(UUID.fromString(MORVI_UUID_SERV));
+            if (service != null) {
+                BluetoothGattCharacteristic characteristic = service.getCharacteristic(
+                        UUID.fromString(MORVI_UUID_CHAR));
+                characteristic.setValue(command,
+                        android.bluetooth.BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+                if (ble_gatt.writeCharacteristic(characteristic)) {
+                    comm_listener.characteristicWrote(command);
+                } else{
+                    comm_listener.didntFindCharacteristic();
+                }
+            } else {
+                comm_listener.didntFindService();
+            }
+        }
     }
 
     /**
@@ -249,9 +288,9 @@ public class BluetoothDriver {
     }
 
     /**
-     * BluetoothDriverListener: Para escuchar los eventos generados por el driver.
+     * BluetoothDriverConnectionListener: Para escuchar los eventos generados por el driver.
      */
-    public interface BluetoothDriverListener{
+    public interface BluetoothDriverConnectionListener{
         void bluetoothOff();
         void newDeviceScanned(BluetoothDevice device);
         void scanning();
@@ -260,6 +299,16 @@ public class BluetoothDriver {
         void scanFailed();
         void alreadyConnecting();
         void connectedToDevice(BluetoothGatt ble_gatt);
+        void servicesDiscoveredDevice();
+    }
+
+    /**
+     * BluetoothDriverListener: Para escuchar los eventos generados por el driver.
+     */
+    public interface BluetoothDriverCommunicationListener{
         void disconnectedFromDevice(BluetoothGatt ble_gatt);
+        void didntFindService();
+        void didntFindCharacteristic();
+        void characteristicWrote(char command);
     }
 }
