@@ -7,6 +7,8 @@
     <string name="permission_dialog_title">Would you… please?</string>
     <string name="permission_dialog_location">We need you to give us access to your location so we
         can find Morvi.</string>
+    <string name="permission_dialog_camera">We need you to give us access to your camera so  Morvi
+        can see.</string>
     <string name="simple_dialog_accept">OK :)</string>
     <string name="simple_dialog_cancel">Nope</string>
 
