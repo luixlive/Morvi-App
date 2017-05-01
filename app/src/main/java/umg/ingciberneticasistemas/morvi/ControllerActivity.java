@@ -6,10 +6,11 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.view.MenuItem;
 import android.view.SurfaceView;
+import android.view.View;
 import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -46,18 +47,26 @@ public class ControllerActivity extends AppCompatActivity implements
      */
     private BluetoothDriver bt_driver;
 
+    /**
+     * camera_preview: Area del layout donde se muestra el preview de la camara.
+     */
+    private CameraBridgeViewBase camera_preview;
 
+    /**
+     * track: Indica si el algoritmo de rastreo esta activado o no.
+     */
+    private boolean track = false;
 
-    private CameraBridgeViewBase mOpenCvCameraView;
-    private boolean              mIsJavaCamera = true;
-    private MenuItem mItemSwitchCamera = null;
-    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+    /**
+     * preview_loader_listener: Manejador para eventos de la carga del area del preview.
+     */
+    private BaseLoaderCallback preview_loader_listener = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
             switch (status) {
                 case LoaderCallbackInterface.SUCCESS:
                 {
-                    mOpenCvCameraView.enableView();
+                    camera_preview.enableView();
                 } break;
                 default:
                 {
@@ -66,8 +75,6 @@ public class ControllerActivity extends AppCompatActivity implements
             }
         }
     };
-
-
 
     /**
      * bt_driver_listener: Manejo de eventos del driver del bt
@@ -116,6 +123,43 @@ public class ControllerActivity extends AppCompatActivity implements
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_controller);
 
+        camera_preview = (CameraBridgeViewBase) findViewById(R.id.opencv_camera_preview_surface);
+        camera_preview.setVisibility(SurfaceView.VISIBLE);
+        camera_preview.setCvCameraViewListener(this);
+
+        //Recupera el driver de bluetooth
+        bt_driver = MorviApplication.getBluetoothDriver();
+        bt_driver.onBluetoothDriverListener(bt_driver_listener);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_CAMERA_ID: {
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    //El usuario dio permiso de acceso a la ubicacion, se inicia la busqueda
+                    initCameraPreview();
+                } else {
+                    finish();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onPause()
+    {
+        super.onPause();
+        if (camera_preview != null)
+            camera_preview.disableView();
+    }
+
+    @Override
+    public void onResume()
+    {
+        super.onResume();
         if (ActivityCompat.checkSelfPermission(this, CAMERA) !=
                 PackageManager.PERMISSION_GRANTED){
             //No hay permiso de camara, se solicita al usuario
@@ -145,52 +189,13 @@ public class ControllerActivity extends AppCompatActivity implements
         } else {
             initCameraPreview();
         }
-
-        //Recupera el driver de bluetooth
-        bt_driver = MorviApplication.getBluetoothDriver();
-        bt_driver.onBluetoothDriverListener(bt_driver_listener);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
-                                           @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_CAMERA_ID: {
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    //El usuario dio permiso de acceso a la ubicacion, se inicia la busqueda
-                    initCameraPreview();
-                } else {
-                    finish();
-                }
-            }
-        }
-    }
-
-    @Override
-    public void onPause()
-    {
-        super.onPause();
-        if (mOpenCvCameraView != null)
-            mOpenCvCameraView.disableView();
-    }
-
-    @Override
-    public void onResume()
-    {
-        super.onResume();
-        if (!OpenCVLoader.initDebug()) {
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
-        } else {
-            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-        }
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (mOpenCvCameraView != null)
-            mOpenCvCameraView.disableView();
+        if (camera_preview != null)
+            camera_preview.disableView();
     }
 
     @Override
@@ -205,13 +210,35 @@ public class ControllerActivity extends AppCompatActivity implements
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        if (track){
+            //TODO ENCONTRAR CIRCULO FIUSHA?
+        }
         return inputFrame.rgba();
     }
 
+    /**
+     * initCameraPreview: Comienza el preview de la camara.
+     */
     private void initCameraPreview(){
-        mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.opencv_camera_preview_surface);
-        mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
-        mOpenCvCameraView.setCvCameraViewListener(this);
+        if (!OpenCVLoader.initDebug()) {
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this,
+                    preview_loader_listener);
+        } else {
+            preview_loader_listener.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+        }
+    }
+
+    /**
+     * fabClicked: Evento disparado cuando se pulsa el FAB de inicio de rastreo.
+     * @param v vista del FAB
+     */
+    public void fabClicked(View v){
+        if (track) {
+            ((FloatingActionButton) v).setImageResource(android.R.drawable.ic_media_play);
+        } else{
+            ((FloatingActionButton) v).setImageResource(android.R.drawable.ic_media_pause);
+        }
+        track = !track;
     }
 
 }

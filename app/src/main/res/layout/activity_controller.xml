@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:opencv="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -10,6 +11,18 @@
         android:visibility="gone"
         android:id="@+id/opencv_camera_preview_surface"
         opencv:show_fps="true"
-        opencv:camera_id="any" />
+        opencv:camera_id="any"
+        android:layout_alignParentStart="true" />
 
-</FrameLayout>
+    <android.support.design.widget.FloatingActionButton
+        android:layout_margin="@dimen/fab_margin"
+        android:onClick="fabClicked"
+        android:id="@+id/floatingActionButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:fabSize="normal"
+        app:srcCompat="@android:drawable/ic_media_play"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true" />
+
+</RelativeLayout>
