@@ -5,10 +5,12 @@ import android.bluetooth.BluetoothGatt;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Toast;
@@ -18,12 +20,17 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
 
 import umg.ingciberneticasistemas.morvi.application.MorviApplication;
 import umg.ingciberneticasistemas.morvi.dialogs.SimpleDialog;
 import umg.ingciberneticasistemas.morvi.drivers.BluetoothDriver;
 
 import static android.Manifest.permission.CAMERA;
+import static org.opencv.imgproc.Imgproc.CV_HOUGH_GRADIENT;
+import static org.opencv.imgproc.Imgproc.HoughCircles;
 
 /**
  * Created by luchavez on 18/03/2017.
@@ -56,6 +63,11 @@ public class ControllerActivity extends AppCompatActivity implements
      * track: Indica si el algoritmo de rastreo esta activado o no.
      */
     private boolean track = false;
+
+    /**
+     * can_write: Indica si se puede escribir caracteristicas a Morvi por bluetooth.
+     */
+    private boolean can_write = false;
 
     /**
      * preview_loader_listener: Manejador para eventos de la carga del area del preview.
@@ -91,17 +103,27 @@ public class ControllerActivity extends AppCompatActivity implements
 
         @Override
         public void didntFindService() {
-
+            Log.i("BLEDRIVER", "No se encontro servicio");
         }
 
         @Override
         public void didntFindCharacteristic() {
+            Log.i("BLEDRIVER", "No se encontro caracteristica");
+        }
 
+        @Override
+        public void readyToWrite() {
+            can_write = true;
+        }
+
+        @Override
+        public void cantWrite() {
+            can_write = false;
         }
 
         @Override
         public void characteristicWrote(char command) {
-
+            Log.i("BLEDRIVER", "Caracteristica escrita");
         }
 
         /**
@@ -130,6 +152,7 @@ public class ControllerActivity extends AppCompatActivity implements
         //Recupera el driver de bluetooth
         bt_driver = MorviApplication.getBluetoothDriver();
         bt_driver.onBluetoothDriverListener(bt_driver_listener);
+        can_write = bt_driver.canWrite();
     }
 
     @Override
@@ -210,10 +233,47 @@ public class ControllerActivity extends AppCompatActivity implements
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        Mat result = inputFrame.rgba();
+        //Si esta en modo deteccion
         if (track){
-            //TODO ENCONTRAR CIRCULO FIUSHA?
+            //Obtiene la imagen en blanco y negro
+            Mat gray = new Mat();
+            Imgproc.cvtColor(result, gray, Imgproc.COLOR_RGBA2GRAY);
+
+            //OBtiene los circuilos con Hough
+            Mat circles = new Mat();
+            HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, result.rows()/8, 200, 100, 10, 100);
+
+            //Itera los circulos
+            for (int i = 0; i < circles.cols(); i++)
+            {
+                double vCircle[] = circles.get(0,i);
+                int center_x = (int)vCircle[0];
+                int center_y = (int)vCircle[1];
+
+                //Ubica los centros y checa sin son color morado TODO FALLOS AQUI
+                Mat mat_point_center = result.submat(center_y, center_y+1, center_x, center_x+1);
+
+                Mat rgb_center = new Mat();
+                Mat hsv_center = new Mat();
+
+                Imgproc.cvtColor(mat_point_center, rgb_center, Imgproc.COLOR_RGBA2RGB);
+                Imgproc.cvtColor(rgb_center, hsv_center, Imgproc.COLOR_RGB2HSV);
+
+                double hue_central_point = hsv_center.get(0,0)[0];
+                if (hue_central_point > 133 && hue_central_point < 145){
+                    //Si si es un circulo morado, rodea el circulo con una linea azul
+                    Point center = new Point((int)vCircle[0], (int)vCircle[1]);
+                    Imgproc.circle( result, center, (int)vCircle[2], new Scalar(0,0,255), 3, 8, 0 );
+                    break;
+                }
+            }
+        } else {
+            result = inputFrame.rgba();
         }
-        return inputFrame.rgba();
+        //Pausa el sistema por 500 ms
+        SystemClock.sleep(500);
+        return result;
     }
 
     /**
@@ -239,6 +299,16 @@ public class ControllerActivity extends AppCompatActivity implements
             ((FloatingActionButton) v).setImageResource(android.R.drawable.ic_media_pause);
         }
         track = !track;
+    }
+
+    @Override
+    public void onBackPressed(){
+        //Cuando se pulse back, se destruye el historial de activities, al destruir la activitei
+        //de MorviFinder, se llama el onDestroy que cierra el bt_driver y al iniciar el nuevo
+        //intent se vuelve a crear de 0 para que vuelva a buscar dispositivos
+        Intent intent = new Intent(ControllerActivity.this, MorviFinderActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
     }
 
 }

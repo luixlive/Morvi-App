@@ -30,13 +30,13 @@ public class BluetoothDriver {
      * MORVI_UUID_CHAR: Constante para ubicar la caracteristica de Morvi donde escribir los
      * comandos.
      */
-    private static final String MORVI_UUID_CHAR = "";   //TODO DEFINIR UUID
+    private static final String MORVI_UUID_CHAR = "0000ffe1-0000-1000-8000-00805f9b34fb";
 
     /**
      * MORVI_UUID_SERV: Constante para ubicar el servicio de Morvi que contiene la caracteristica
      * de comunicacion
      */
-    private static final String MORVI_UUID_SERV = "";   //TODO DEFINIR UUID
+    private static final String MORVI_UUID_SERV = "0000ffe0-0000-1000-8000-00805f9b34fb";
 
 
     /**
@@ -133,6 +133,7 @@ public class BluetoothDriver {
                 case BluetoothGatt.STATE_DISCONNECTED:
                     comm_listener.disconnectedFromDevice(gatt);
                     can_write = false;
+                    comm_listener.cantWrite();
             }
         }
 
@@ -145,15 +146,14 @@ public class BluetoothDriver {
             //Lee los servicios del BLE
             List<BluetoothGattService> dev_services = ble_gatt.getServices();
             for (BluetoothGattService service : dev_services) {
-
                 //Si encuentra el servicio de Morvi, busca la característica
                 if (service.getUuid().toString().equals(MORVI_UUID_SERV)) {
                     List<BluetoothGattCharacteristic> serv_characteristics =
                             service.getCharacteristics();
                     for (BluetoothGattCharacteristic characteristic : serv_characteristics) {
-                        Log.i("BLE DRIVER", "Char: " + characteristic.toString());
                         if (characteristic.getUuid().toString().equals(MORVI_UUID_CHAR)) {
                             can_write = true;
+                            comm_listener.readyToWrite();
                         }
                     }
                 }
@@ -161,7 +161,6 @@ public class BluetoothDriver {
         }
 
     };
-
 
     /**
      * @param bt_manager manejador de configuracinoes de BT
@@ -274,6 +273,14 @@ public class BluetoothDriver {
     }
 
     /**
+     * canWrite: Indica si es posible escribir en este momento a Morvi.
+     * @return true si se puede escribir, false de otro modo.
+     */
+    public boolean canWrite(){
+        return can_write;
+    }
+
+    /**
      * close: Cierra los componentes del bt.
      */
     public void close(){
@@ -309,6 +316,8 @@ public class BluetoothDriver {
         void disconnectedFromDevice(BluetoothGatt ble_gatt);
         void didntFindService();
         void didntFindCharacteristic();
+        void readyToWrite();
+        void cantWrite();
         void characteristicWrote(char command);
     }
 }
