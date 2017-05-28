@@ -34,4 +34,10 @@
         <item>15</item>
         <item>20</item>
     </string-array>
+
+    <string name="morvi_protocol_straight">A</string>
+    <string name="morvi_protocol_left">L</string>
+    <string name="morvi_protocol_right">R</string>
+    <string name="morvi_protocol_reverse">B</string>
+    <string name="morvi_protocol_stop">S</string>
 </resources>

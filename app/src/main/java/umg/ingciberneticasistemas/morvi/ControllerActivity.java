@@ -22,6 +22,7 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import umg.ingciberneticasistemas.morvi.application.MorviApplication;
@@ -30,7 +31,9 @@ import umg.ingciberneticasistemas.morvi.drivers.BluetoothDriver;
 
 import static android.Manifest.permission.CAMERA;
 import static org.opencv.imgproc.Imgproc.CV_HOUGH_GRADIENT;
+import static org.opencv.imgproc.Imgproc.GaussianBlur;
 import static org.opencv.imgproc.Imgproc.HoughCircles;
+import static org.opencv.imgproc.Imgproc.cvtColor;
 
 /**
  * Created by luchavez on 18/03/2017.
@@ -50,6 +53,18 @@ public class ControllerActivity extends AppCompatActivity implements
     private static final String REQUEST_CAMERA_DIALOG_TAG = "rcdt";
 
     /**
+     * REL_ORIENTATION_TURN_LEFT: Valor necesario de la posicion relativa para que Morvie tenga que
+     * girar a la izquierda
+     */
+    private final static int REL_ORIENTATION_TURN_LEFT = -150;
+
+    /**
+     * REL_ORIENTATION_TURN_RIGHT: Valor necesario de la posicion relativa para que Morvie tenga que
+     * girar a la derecha
+     */
+    private final static int REL_ORIENTATION_TURN_RIGHT = 150;
+
+    /**
      * bt_driver: Manejador de todos los procesos relacionados a bluetooth.
      */
     private BluetoothDriver bt_driver;
@@ -67,7 +82,7 @@ public class ControllerActivity extends AppCompatActivity implements
     /**
      * can_write: Indica si se puede escribir caracteristicas a Morvi por bluetooth.
      */
-    private boolean can_write = false;
+     private volatile boolean can_write = false;
 
     /**
      * preview_loader_listener: Manejador para eventos de la carga del area del preview.
@@ -156,30 +171,6 @@ public class ControllerActivity extends AppCompatActivity implements
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
-                                           @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_CAMERA_ID: {
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    //El usuario dio permiso de acceso a la ubicacion, se inicia la busqueda
-                    initCameraPreview();
-                } else {
-                    finish();
-                }
-            }
-        }
-    }
-
-    @Override
-    public void onPause()
-    {
-        super.onPause();
-        if (camera_preview != null)
-            camera_preview.disableView();
-    }
-
-    @Override
     public void onResume()
     {
         super.onResume();
@@ -215,6 +206,30 @@ public class ControllerActivity extends AppCompatActivity implements
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_CAMERA_ID: {
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    //El usuario dio permiso de acceso a la ubicacion, se inicia la busqueda
+                    initCameraPreview();
+                } else {
+                    finish();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onPause()
+    {
+        super.onPause();
+        if (camera_preview != null)
+            camera_preview.disableView();
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
         if (camera_preview != null)
@@ -236,13 +251,13 @@ public class ControllerActivity extends AppCompatActivity implements
         Mat result = inputFrame.rgba();
         //Si esta en modo deteccion
         if (track){
-            //Obtiene la imagen en blanco y negro
             Mat gray = new Mat();
-            Imgproc.cvtColor(result, gray, Imgproc.COLOR_RGBA2GRAY);
 
-            //OBtiene los circuilos con Hough
+            cvtColor(result, gray, Imgproc.COLOR_RGBA2GRAY);
+            // smooth it, otherwise a lot of false circles may be detected
+            GaussianBlur(gray, gray, new Size(3, 3), 2, 2 );
             Mat circles = new Mat();
-            HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 1, result.rows()/8, 200, 100, 10, 100);
+            HoughCircles(gray, circles, CV_HOUGH_GRADIENT, 2, result.rows()/4, 275, 130, 10, 100);
 
             //Itera los circulos
             for (int i = 0; i < circles.cols(); i++)
@@ -251,28 +266,55 @@ public class ControllerActivity extends AppCompatActivity implements
                 int center_x = (int)vCircle[0];
                 int center_y = (int)vCircle[1];
 
-                //Ubica los centros y checa sin son color morado TODO FALLOS AQUI
                 Mat mat_point_center = result.submat(center_y, center_y+1, center_x, center_x+1);
 
                 Mat rgb_center = new Mat();
                 Mat hsv_center = new Mat();
 
-                Imgproc.cvtColor(mat_point_center, rgb_center, Imgproc.COLOR_RGBA2RGB);
-                Imgproc.cvtColor(rgb_center, hsv_center, Imgproc.COLOR_RGB2HSV);
+                cvtColor(mat_point_center, rgb_center, Imgproc.COLOR_RGBA2RGB);
+                cvtColor(rgb_center, hsv_center, Imgproc.COLOR_RGB2HSV);
 
                 double hue_central_point = hsv_center.get(0,0)[0];
-                if (hue_central_point > 133 && hue_central_point < 145){
-                    //Si si es un circulo morado, rodea el circulo con una linea azul
-                    Point center = new Point((int)vCircle[0], (int)vCircle[1]);
-                    Imgproc.circle( result, center, (int)vCircle[2], new Scalar(0,0,255), 3, 8, 0 );
+                if (hue_central_point > 120 && hue_central_point < 150){
+                    //Si si es un circulo morado, colocamos el blanco
+                    Point center = new Point(center_x, center_y);
+                    Imgproc.circle( result, center, (int)vCircle[2],
+                            new Scalar(255,255,255), -1, 8, 0 );
+                    Imgproc.circle( result, center, (int)vCircle[2],
+                            new Scalar(255,0,0), 2, 8, 0 );
+                    Imgproc.circle( result, center, ((int)vCircle[2]/2)+1,
+                            new Scalar(255,0,0), 2, 8, 0 );
+                    Imgproc.circle( result, center, 3,
+                            new Scalar(255,0,0), -1, 8, 0 );
+
+                    //Si se puede escribir calcula y envia la caracteristica por bt
+                    if (can_write) {
+                        //Calcula hacia donde se debe dirigir  (se ponen filas en lugar de columnas
+                        //debido a que OpenCV gira la camara 90°
+                        int landscape_vertical_center = result.rows() / 2;
+                        int relative_orientation = landscape_vertical_center - center_y;
+                        if (relative_orientation < REL_ORIENTATION_TURN_LEFT) {
+                            bt_driver.write(getString(R.string.morvi_protocol_left).charAt(0));
+                        } else if (relative_orientation > REL_ORIENTATION_TURN_RIGHT) {
+                            bt_driver.write(getString(R.string.morvi_protocol_right).charAt(0));
+                        } else {
+                            bt_driver.write(getString(R.string.morvi_protocol_straight).charAt(0));
+                        }
+                    }
                     break;
+                }
+
+                if (can_write) {
+                    bt_driver.write(getString(R.string.morvi_protocol_stop).charAt(0));
                 }
             }
         } else {
-            result = inputFrame.rgba();
+            if (can_write) {
+                bt_driver.write(getString(R.string.morvi_protocol_stop).charAt(0));
+            }
         }
-        //Pausa el sistema por 500 ms
-        SystemClock.sleep(500);
+        //Pausa el sistema por ms
+        SystemClock.sleep(250);
         return result;
     }
 
