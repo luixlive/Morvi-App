@@ -13,6 +13,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -168,6 +169,9 @@ public class ControllerActivity extends AppCompatActivity implements
         bt_driver = MorviApplication.getBluetoothDriver();
         bt_driver.onBluetoothDriverListener(bt_driver_listener);
         can_write = bt_driver.canWrite();
+
+        //Mantener el dispositivo encendido
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     @Override
@@ -234,6 +238,7 @@ public class ControllerActivity extends AppCompatActivity implements
         super.onDestroy();
         if (camera_preview != null)
             camera_preview.disableView();
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     @Override
